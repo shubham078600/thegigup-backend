@@ -1,0 +1,311 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String
+  role         Role
+  profileImage String?
+  bio          String?
+  location     String?
+  isActive     Boolean  @default(true) // New: For user suspension
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  freelancer Freelancer?
+  client     Client?
+  admin      Admin?
+
+  @@map("users")
+}
+
+model Admin {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  permissions AdminRole[] @default([MODERATOR])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+model Freelancer {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  age               Int?
+  skills            String[]
+  experience        String?
+  projectsCompleted Int      @default(0)
+  ratings           Float    @default(0)
+  hourlyRate        Float?
+  availability      Boolean  @default(true)
+  githubUrl         String?
+  linkedinUrl       String?
+  portfolioUrl      String?
+  isVerified        Boolean  @default(true) // New: Admin verification
+
+  // Relations
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedProjects Project[]
+  applications     Application[]
+
+  @@map("freelancers")
+}
+
+model Client {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  companyName    String?
+  industry       String?
+  projectsPosted Int     @default(0)
+  ratings        Float   @default(0)
+  website        String?
+  isVerified     Boolean @default(true) // New: Admin verification
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@map("clients")
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  clientId       String
+  skillsRequired String[]
+  budgetMin      Float?
+  budgetMax      Float?
+  duration       String?
+  status         ProjectStatus @default(OPEN)
+  assignedTo     String?
+  isFeatured     Boolean       @default(false) // New: Admin can feature projects
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  freelancer      Freelancer?      @relation(fields: [assignedTo], references: [id])
+  applications    Application[]
+  ratings         Rating[]
+  meetings        Meeting[]
+  meetingRequests MeetingRequest[] // Add this line
+
+  @@map("projects")
+}
+
+model Application {
+  id               String            @id @default(cuid())
+  projectId        String
+  freelancerId     String
+  proposal         String?
+  coverLetter      String?
+  status           ApplicationStatus @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  freelancer      Freelancer       @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  meetings        Meeting[]
+  meetingRequests MeetingRequest[] // Add this line
+
+  // Prevent duplicate applications
+  @@unique([projectId, freelancerId])
+  @@map("applications")
+}
+
+model Meeting {
+  id               String        @id @default(cuid())
+  projectId        String
+  applicationId    String
+  clientId         String
+  freelancerId     String
+  title            String
+  description      String?
+  googleMeetLink   String
+  scheduledDate    DateTime
+  scheduledTime    String        // Store as "HH:MM" format
+  timezone         String        @default("UTC")
+  duration         Int           @default(60) // Duration in minutes
+  status           MeetingStatus @default(SCHEDULED)
+  rescheduleReason String?
+  notes            String?
+  reminderSent     Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  application       Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdFromRequest MeetingRequest[] // Add this line
+
+  @@map("meetings")
+}
+
+model MeetingRequest {
+  id                String              @id @default(cuid())
+  projectId         String
+  applicationId     String
+  requesterId       String              // User who requested the meeting
+  requesterType     RequesterType       // CLIENT or FREELANCER
+  clientId          String
+  freelancerId      String
+  requestReason     String
+  meetingType       MeetingType         @default(GENERAL)
+  urgency           UrgencyLevel        @default(NORMAL)
+  description       String?
+  suggestedDates    String[]            // JSON array of suggested dates/times
+  preferredDuration Int                 @default(30)
+  status            MeetingRequestStatus @default(PENDING)
+  responseNote      String?             // Client's response when approving/rejecting
+  createdMeetingId  String?             // ID of created meeting if approved
+  respondedAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdMeeting  Meeting?    @relation(fields: [createdMeetingId], references: [id])
+
+  @@map("meeting_requests")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String // User who made the report
+  reportedId  String // User being reported
+  reportType  ReportType
+  reason      String
+  description String?
+  status      ReportStatus @default(PENDING)
+  adminNotes  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("reports")
+}
+
+model Rating {
+  id          String     @id @default(cuid())
+  projectId   String
+  raterId     String     // ID of user giving the rating
+  ratedId     String     // ID of user being rated
+  raterType   RaterType  // Who is giving the rating
+  rating      Int        // 1-5 star rating
+  review      String?    // Optional review text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate ratings for same project
+  @@unique([projectId, raterId, ratedId])
+  @@map("ratings")
+}
+
+enum Role {
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
+  SUPPORT
+}
+
+enum ProjectStatus {
+  OPEN
+  ASSIGNED
+  PENDING_COMPLETION
+  COMPLETED
+  REJECTED_COMPLETION
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReportType {
+  USER_BEHAVIOR
+  INAPPROPRIATE_CONTENT
+  FRAUD
+  SPAM
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+enum RaterType {
+  CLIENT_TO_FREELANCER
+  FREELANCER_TO_CLIENT
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  RESCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum RequesterType {
+  CLIENT
+  FREELANCER
+}
+
+enum MeetingType {
+  KICKOFF
+  PROGRESS
+  REVIEW
+  CLARIFICATION
+  PROGRESS_UPDATE
+  ISSUE_DISCUSSION
+  GENERAL
+}
+
+enum UrgencyLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MeetingRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
