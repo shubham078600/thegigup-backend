@@ -97,11 +97,12 @@ model Project {
   budgetMin      Float?
   budgetMax      Float?
   duration       String?
-  status         ProjectStatus @default(OPEN)
+  status         ProjectStatus @default(ADMIN_VERIFICATION)
   assignedTo     String?
   isFeatured     Boolean       @default(false) // New: Admin can feature projects
   createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  updatedAt      DateTime      @updatedAt// New: Flag for admin rejection
+  rejectedReason String? 
 
   // Relations
   client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -239,6 +240,7 @@ enum AdminRole {
 }
 
 enum ProjectStatus {
+  ADMIN_VERIFICATION
   OPEN
   ASSIGNED
   PENDING_COMPLETION
