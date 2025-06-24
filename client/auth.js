@@ -274,16 +274,14 @@ export const login = async (req, res) => {
     }
 };
 
-// PUT /api/client/profile - Fixed hasOwnProperty error
+// PUT /api/client/profile - Fixed profile image update issue
 export const updateProfile = async (req, res) => {
     try {
         const userId = req.user.userId;
-        let updateData = { ...req.body }; // Convert to plain object
-        
         console.log('Update profile request:', {
             userId,
             hasFile: !!req.file,
-            updateData: Object.keys(updateData)
+            body: req.body
         });
 
         // Check if user exists and is a client
@@ -301,6 +299,8 @@ export const updateProfile = async (req, res) => {
 
         // Handle profile image upload if provided
         let profileImageUrl = existingUser.profileImage;
+        let imageUpdated = false;
+        
         if (req.file) {
             try {
                 // Delete old image if it exists
@@ -312,7 +312,7 @@ export const updateProfile = async (req, res) => {
                 const uploadResult = await uploadImage(req.file.buffer, 'client-profiles');
                 if (uploadResult.success) {
                     profileImageUrl = uploadResult.url;
-                    updateData.profileImage = profileImageUrl;
+                    imageUpdated = true;
                     console.log('Profile image uploaded successfully:', profileImageUrl);
                 } else {
                     throw new Error('Failed to upload image to Cloudinary');
@@ -327,104 +327,76 @@ export const updateProfile = async (req, res) => {
             }
         }
 
-        // Validate that at least one field is provided
-        if (!updateData || Object.keys(updateData).length === 0) {
+        // Extract fields from request body
+        const {
+            name,
+            bio,
+            location,
+            companyName,
+            industry,
+            website
+        } = req.body;
+
+        // Validate that at least one field is provided (excluding email and phone)
+        const hasUpdates = name || bio || location || companyName || industry || website || req.file;
+        if (!hasUpdates) {
             return res.status(400).json({
                 success: false,
                 message: 'At least one field must be provided for update'
             });
         }
 
-        // Get previous profile completeness
-        const previousCompleteness = calculateClientProfileCompleteness(existingUser, existingUser.client);
-
-        // Prepare update data for User table - Fixed hasOwnProperty issue
-        const userUpdateData = {};
-        const userFields = ['name', 'email', 'profileImage', 'bio', 'location', 'phone', 'website', 'timezone'];
-        
-        userFields.forEach(field => {
-            if (field in updateData && updateData[field] !== undefined && updateData[field] !== '') {
-                userUpdateData[field] = updateData[field];
-            }
-        });
-
-        // Add updatedAt timestamp if any user field is being updated
-        if (Object.keys(userUpdateData).length > 0) {
-            userUpdateData.updatedAt = new Date();
-        }
-
-        // Prepare update data for Client table - Fixed hasOwnProperty issue
-        const clientUpdateData = {};
-        const clientFields = [
-            'companyName', 'companySize', 'industry', 'companyWebsite',
-            'preferredCategories', 'budgetRange', 'communicationPreference',
-            'projectNotifications', 'emailNotifications', 'marketingEmails'
-        ];
-
-        clientFields.forEach(field => {
-            if (field in updateData && updateData[field] !== undefined && updateData[field] !== '') {
-                clientUpdateData[field] = updateData[field];
-            }
-        });
-
-        // Add updatedAt timestamp if any client field is being updated
-        if (Object.keys(clientUpdateData).length > 0) {
-            clientUpdateData.updatedAt = new Date();
-        }
-
-        // Perform updates in transaction
+        // Update user and client profile in a transaction (similar to freelancer approach)
         const result = await prisma.$transaction(async (tx) => {
-            let updatedUser = existingUser;
-            let updatedClient = existingUser.client;
+            // Update user table - FIXED: Include profileImage update
+            const userUpdateData = {
+                ...(name && { name }),
+                ...(bio !== undefined && { bio }),
+                ...(location !== undefined && { location }),
+                ...(imageUpdated && { profileImage: profileImageUrl })
+            };
 
-            // Update User table if needed
-            if (Object.keys(userUpdateData).length > 0) {
-                updatedUser = await tx.user.update({
-                    where: { id: userId },
-                    data: userUpdateData,
-                    include: { client: true }
-                });
-            }
+            const updatedUser = await tx.user.update({
+                where: { id: userId },
+                data: userUpdateData,
+                include: { client: true }
+            });
 
-            // Update Client table if needed
-            if (Object.keys(clientUpdateData).length > 0) {
-                updatedClient = await tx.client.update({
-                    where: { userId: userId },
-                    data: clientUpdateData
-                });
-                
-                // Refresh user data with updated client info
-                updatedUser = await tx.user.findUnique({
-                    where: { id: userId },
-                    include: { client: true }
-                });
-            }
+            // Update client table
+            const clientUpdateData = {
+                ...(companyName !== undefined && { companyName }),
+                ...(industry !== undefined && { industry }),
+                ...(website !== undefined && { website })
+            };
+
+            const updatedClient = await tx.client.update({
+                where: { userId },
+                data: clientUpdateData
+            });
 
             return { user: updatedUser, client: updatedClient };
         });
 
-        // Calculate new profile completeness
-        const newCompleteness = calculateClientProfileCompleteness(result.user, result.client);
+        // Invalidate all relevant caches
+        await invalidateClientCaches(userId);
 
-        // Remove sensitive data
+        // Remove password from response
         const { password: _, ...userWithoutPassword } = result.user;
 
         console.log('Profile update successful:', {
-            updatedFields: Object.keys(updateData),
-            newImageUrl: profileImageUrl !== existingUser.profileImage ? profileImageUrl : undefined
+            updatedFields: Object.keys(req.body).concat(req.file ? ['profileImage'] : []),
+            hasImageUpdate: imageUpdated,
+            newImageUrl: imageUpdated ? profileImageUrl : 'No change'
         });
 
         res.status(200).json({
             success: true,
-            message: `Profile updated successfully. ${Object.keys(updateData).length} field(s) modified.`,
+            message: 'Profile updated successfully',
             data: {
-                updatedFields: Object.keys(updateData),
                 user: userWithoutPassword,
                 client: result.client,
-                profileCompleteness: {
-                    ...newCompleteness,
-                    previousPercentage: previousCompleteness.percentage
-                }
+                imageUpdated: imageUpdated,
+                ...(imageUpdated && { newImageUrl: profileImageUrl })
             }
         });
 

@@ -127,21 +127,22 @@ clientRouter.put('/profile', authenticateToken, upload.single('profileImage'), a
     try {
         const userId = req.user.userId;
 
-        // Update profile logic...
-        const result = await updateProfile(req, res);
+        // Call the updateProfile function from auth.js
+        await updateProfile(req, res);
 
-        // Invalidate cache
+        // Invalidate profile cache
         const cacheKey = `client:profile:${userId}`;
         await deleteCache(cacheKey);
 
-        return result;
     } catch (error) {
         console.error('Update profile error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Internal server error',
-            error: error.message
-        });
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error',
+                error: error.message
+            });
+        }
     }
 });
 
@@ -2619,7 +2620,7 @@ clientRouter.post('/projects/:projectId/meetings', authenticateToken, checkClien
                 success: false,
                 message: 'No approved application found for this project'
             });
-        }
+               }
 
         // Create meeting
         const meeting = await prisma.meeting.create({

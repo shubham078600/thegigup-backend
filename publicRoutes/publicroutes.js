@@ -488,7 +488,7 @@ publicRouter.get('/featured/freelancers', async (req, res) => {
                 }
                 return b.projectsCompleted - a.projectsCompleted;
             })
-            .slice(0, 3);
+            .slice(0, 3); 
 
         const responseData = sortedFreelancers.map(freelancer => ({
             id: freelancer.id,
