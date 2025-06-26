@@ -488,7 +488,7 @@ publicRouter.get('/featured/freelancers', async (req, res) => {
                 }
                 return b.projectsCompleted - a.projectsCompleted;
             })
-            .slice(0, 3); 
+            .slice(0, 4); 
 
         const responseData = sortedFreelancers.map(freelancer => ({
             id: freelancer.id,
@@ -941,7 +941,7 @@ publicRouter.get('/users/:userId/ratings/summary', async (req, res) => {
     }
 });
 
-// GET /api/public/freelancers/:freelancerId/profile - Get detailed freelancer public profile
+// GET /api/public/freelancers/:freelancerId/profile - Get detailed freelancer public profile with client reviews
 publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
     try {
         const { freelancerId } = req.params;
@@ -970,7 +970,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                     select: {
                         id: true,
                         name: true,
-                        email: true, // Consider removing for privacy
+                        email: true,
                         profileImage: true,
                         bio: true,
                         location: true,
@@ -994,10 +994,12 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                         updatedAt: true,
                         client: {
                             select: {
+                                id: true,
                                 companyName: true,
                                 industry: true,
                                 user: {
                                     select: {
+                                        id: true,
                                         name: true,
                                         profileImage: true,
                                         location: true
@@ -1021,9 +1023,9 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
             });
         }
 
-        // Get ratings received by this freelancer (from clients)
-        const [ratingsReceived, ratingStats, ratingDistribution] = await Promise.all([
-            // Latest 5 ratings received
+        // Get ratings received by this freelancer (from clients) with client details
+        const [ratingsWithClientDetails, ratingStats, ratingDistribution] = await Promise.all([
+            // Get ratings with client information
             prisma.rating.findMany({
                 where: {
                     ratedId: freelancer.user.id,
@@ -1034,16 +1036,34 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                     rating: true,
                     review: true,
                     createdAt: true,
+                    raterId: true, // Client user ID
                     project: {
                         select: {
-                            title: true
+                            id: true,
+                            title: true,
+                            client: {
+                                select: {
+                                    id: true,
+                                    companyName: true,
+                                    industry: true,
+                                    isVerified: true,
+                                    user: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            profileImage: true,
+                                            location: true
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
                 orderBy: {
                     createdAt: 'desc'
                 },
-                take: 5
+                take: 20 // Show more ratings for better overview
             }),
             
             // Rating statistics
@@ -1092,6 +1112,23 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                 return sum + durationDays;
             }, 0) / freelancer.assignedProjects.length : 0;
 
+        // Group ratings by rating value for better display
+        const ratingsByValue = {
+            5: ratingsWithClientDetails.filter(r => r.rating === 5),
+            4: ratingsWithClientDetails.filter(r => r.rating === 4),
+            3: ratingsWithClientDetails.filter(r => r.rating === 3),
+            2: ratingsWithClientDetails.filter(r => r.rating === 2),
+            1: ratingsWithClientDetails.filter(r => r.rating === 1)
+        };
+
+        // Calculate rating percentages
+        const totalRatings = ratingsWithClientDetails.length;
+        const ratingPercentages = {};
+        Object.keys(distribution).forEach(star => {
+            const count = distribution[star];
+            ratingPercentages[star] = totalRatings > 0 ? ((count / totalRatings) * 100).toFixed(1) : 0;
+        });
+
         const profileData = {
             freelancer: {
                 id: freelancer.id,
@@ -1120,16 +1157,40 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                     totalRatings: ratingStats._count.rating,
                     totalProjectsValue,
                     averageProjectDuration: Math.ceil(averageProjectDuration),
-                    ratingDistribution: distribution
+                    ratingDistribution: distribution,
+                    ratingPercentages: ratingPercentages
                 }
             },
-            ratingsReceived: ratingsReceived.map(rating => ({
-                id: rating.id,
-                rating: rating.rating,
-                review: rating.review,
-                projectTitle: rating.project.title,
-                createdAt: rating.createdAt
-            })),
+            // Enhanced client reviews with full client details
+            clientReviews: {
+                total: ratingsWithClientDetails.length,
+                breakdown: {
+                    excellent: ratingsByValue[5].length, // 5 star
+                    good: ratingsByValue[4].length,      // 4 star
+                    average: ratingsByValue[3].length,   // 3 star
+                    poor: ratingsByValue[2].length,      // 2 star
+                    terrible: ratingsByValue[1].length   // 1 star
+                },
+                reviews: ratingsWithClientDetails.map(rating => ({
+                    id: rating.id,
+                    rating: rating.rating,
+                    review: rating.review,
+                    createdAt: rating.createdAt,
+                    project: {
+                        id: rating.project.id,
+                        title: rating.project.title
+                    },
+                    client: {
+                        id: rating.project.client.id,
+                        name: rating.project.client.user.name,
+                        profileImage: rating.project.client.user.profileImage,
+                        location: rating.project.client.user.location,
+                        companyName: rating.project.client.companyName,
+                        industry: rating.project.client.industry,
+                        isVerified: rating.project.client.isVerified
+                    }
+                }))
+            },
             completedProjects: freelancer.assignedProjects.map(project => ({
                 id: project.id,
                 title: project.title,
@@ -1144,6 +1205,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                 duration: project.duration,
                 completedAt: project.updatedAt,
                 client: {
+                    id: project.client.id,
                     name: project.client.user.name,
                     company: project.client.companyName,
                     industry: project.client.industry,
@@ -1154,11 +1216,17 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
         };
 
         // Cache for 30 minutes (profile data changes less frequently)
-        await setCache(cacheKey, profileData, 1800);
+        await setCache(cacheKey, {
+            email: freelancer.user.email,
+            ...profileData
+        }, 1800);
 
         res.status(200).json({
             success: true,
-            data: profileData
+            data: {
+                email: freelancer.user.email,
+                ...profileData
+            }
         });
 
     } catch (error) {
