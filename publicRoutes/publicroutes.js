@@ -7,13 +7,13 @@ export const publicRouter = Router();
 // GET /api/public/freelancers - Get all freelancer profiles with project details
 publicRouter.get('/freelancers', async (req, res) => {
     try {
-        const { 
-            skills, 
-            minRating, 
-            location, 
-            availability, 
-            page = 1, 
-            limit = 12 
+        const {
+            skills,
+            minRating,
+            location,
+            availability,
+            page = 1,
+            limit = 12
         } = req.query;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -171,13 +171,13 @@ publicRouter.get('/freelancers', async (req, res) => {
 // GET /api/public/jobs - Get all available jobs/projects
 publicRouter.get('/jobs', async (req, res) => {
     try {
-        const { 
-            skills, 
-            budgetMin, 
-            budgetMax, 
+        const {
+            skills,
+            budgetMin,
+            budgetMax,
             duration,
-            page = 1, 
-            limit = 12 
+            page = 1,
+            limit = 12
         } = req.query;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -363,8 +363,8 @@ publicRouter.get('/featured/projects', async (req, res) => {
             .map(project => ({
                 ...project,
                 applicationsCount: project.applications.length,
-                averageFreelancerRating: project.applications.length > 0 
-                    ? project.applications.reduce((sum, app) => sum + app.freelancer.ratings, 0) / project.applications.length 
+                averageFreelancerRating: project.applications.length > 0
+                    ? project.applications.reduce((sum, app) => sum + app.freelancer.ratings, 0) / project.applications.length
                     : 0
             }))
             .sort((a, b) => {
@@ -488,7 +488,7 @@ publicRouter.get('/featured/freelancers', async (req, res) => {
                 }
                 return b.projectsCompleted - a.projectsCompleted;
             })
-            .slice(0, 4); 
+            .slice(0, 4);
 
         const responseData = sortedFreelancers.map(freelancer => ({
             id: freelancer.id,
@@ -618,7 +618,7 @@ publicRouter.get('/users/:userId/ratings', async (req, res) => {
 
         // Check if user exists and get their basic info
         const user = await prisma.user.findUnique({
-            where: { 
+            where: {
                 id: userId,
                 isActive: true // Only show ratings for active users
             },
@@ -684,12 +684,12 @@ publicRouter.get('/users/:userId/ratings', async (req, res) => {
                 skip,
                 take: limitNum
             }),
-            
+
             // Get total count
-            prisma.rating.count({ 
-                where: whereClause 
+            prisma.rating.count({
+                where: whereClause
             }),
-            
+
             // Get average rating
             prisma.rating.aggregate({
                 where: whereClause,
@@ -700,7 +700,7 @@ publicRouter.get('/users/:userId/ratings', async (req, res) => {
                     rating: true
                 }
             }),
-            
+
             // Get rating distribution
             prisma.rating.groupBy({
                 by: ['rating'],
@@ -816,7 +816,7 @@ publicRouter.get('/users/:userId/ratings/summary', async (req, res) => {
 
         // Check if user exists
         const user = await prisma.user.findUnique({
-            where: { 
+            where: {
                 id: userId,
                 isActive: true
             },
@@ -865,7 +865,7 @@ publicRouter.get('/users/:userId/ratings/summary', async (req, res) => {
                     rating: true
                 }
             }),
-            
+
             prisma.rating.groupBy({
                 by: ['rating'],
                 where: whereClause,
@@ -959,7 +959,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
 
         // Get freelancer with all related data
         const freelancer = await prisma.freelancer.findUnique({
-            where: { 
+            where: {
                 id: freelancerId,
                 user: {
                     isActive: true // Only show active freelancers
@@ -1065,7 +1065,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                 },
                 take: 20 // Show more ratings for better overview
             }),
-            
+
             // Rating statistics
             prisma.rating.aggregate({
                 where: {
@@ -1079,7 +1079,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
                     rating: true
                 }
             }),
-            
+
             // Rating distribution
             prisma.rating.groupBy({
                 by: ['rating'],
@@ -1104,7 +1104,7 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
             return sum + (project.budgetMax || project.budgetMin || 0);
         }, 0);
 
-        const averageProjectDuration = freelancer.assignedProjects.length > 0 ? 
+        const averageProjectDuration = freelancer.assignedProjects.length > 0 ?
             freelancer.assignedProjects.reduce((sum, project) => {
                 const startDate = new Date(project.createdAt);
                 const endDate = new Date(project.updatedAt);
@@ -1194,8 +1194,8 @@ publicRouter.get('/freelancers/:freelancerId/profile', async (req, res) => {
             completedProjects: freelancer.assignedProjects.map(project => ({
                 id: project.id,
                 title: project.title,
-                description: project.description.length > 200 ? 
-                    project.description.substring(0, 200) + '...' : 
+                description: project.description.length > 200 ?
+                    project.description.substring(0, 200) + '...' :
                     project.description,
                 skillsRequired: project.skillsRequired,
                 budget: {
@@ -1245,19 +1245,21 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
         const { clientId } = req.params;
         const cacheKey = `public:client:profile:${clientId}`;
 
+        console.log(`Fetching public client profile for ID: ${clientId}`);
+
         // Check cache first
-        const cachedProfile = await getCache(cacheKey);
-        if (cachedProfile) {
-            return res.status(200).json({
-                success: true,
-                data: cachedProfile,
-                cached: true
-            });
-        }
+        // const cachedProfile = await getCache(cacheKey);
+        // if (cachedProfile) {
+        //     return res.status(200).json({
+        //         success: true,
+        //         data: cachedProfile,
+        //         cached: true
+        //     });
+        // }
 
         // Get client with all related data
         const client = await prisma.client.findUnique({
-            where: { 
+            where: {
                 id: clientId,
                 user: {
                     isActive: true // Only show active clients
@@ -1342,7 +1344,7 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
                 },
                 take: 5
             }),
-            
+
             // Rating statistics
             prisma.rating.aggregate({
                 where: {
@@ -1356,7 +1358,7 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
                     rating: true
                 }
             }),
-            
+
             // Rating distribution
             prisma.rating.groupBy({
                 by: ['rating'],
@@ -1381,7 +1383,7 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
             return sum + (project.budgetMax || project.budgetMin || 0);
         }, 0);
 
-        const averageProjectBudget = client.projects.length > 0 ? 
+        const averageProjectBudget = client.projects.length > 0 ?
             totalProjectsValue / client.projects.length : 0;
 
         const mostUsedSkills = client.projects.reduce((skillMap, project) => {
@@ -1392,7 +1394,7 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
         }, {});
 
         const topSkills = Object.entries(mostUsedSkills)
-            .sort(([,a], [,b]) => b - a)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, 10)
             .map(([skill, count]) => ({ skill, projectCount: count }));
 
@@ -1434,8 +1436,8 @@ publicRouter.get('/clients/:clientId/profile', async (req, res) => {
             completedProjects: client.projects.map(project => ({
                 id: project.id,
                 title: project.title,
-                description: project.description.length > 200 ? 
-                    project.description.substring(0, 200) + '...' : 
+                description: project.description.length > 200 ?
+                    project.description.substring(0, 200) + '...' :
                     project.description,
                 skillsRequired: project.skillsRequired,
                 budget: {
@@ -1479,18 +1481,18 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
         const cacheKey = `public:user:profile:${userId}`;
 
         // Check cache first
-        const cachedProfile = await getCache(cacheKey);
-        if (cachedProfile) {
-            return res.status(200).json({
-                success: true,
-                data: cachedProfile,
-                cached: true
-            });
-        }
+        // const cachedProfile = await getCache(cacheKey);
+        // if (cachedProfile) {
+        //     return res.status(200).json({
+        //         success: true,
+        //         data: cachedProfile,
+        //         cached: true
+        //     });
+        // }
 
         // First, determine if user is freelancer or client
         const user = await prisma.user.findUnique({
-            where: { 
+            where: {
                 id: userId,
                 isActive: true
             },
@@ -1512,7 +1514,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
         if (user.role === 'FREELANCER' && user.freelancer) {
             // Get freelancer profile data directly (don't use HTTP request)
             const freelancer = await prisma.freelancer.findUnique({
-                where: { 
+                where: {
                     id: user.freelancer.id,
                     user: {
                         isActive: true
@@ -1595,7 +1597,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                     },
                     take: 5
                 }),
-                
+
                 prisma.rating.aggregate({
                     where: {
                         ratedId: freelancer.user.id,
@@ -1608,7 +1610,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                         rating: true
                     }
                 }),
-                
+
                 prisma.rating.groupBy({
                     by: ['rating'],
                     where: {
@@ -1632,7 +1634,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                 return sum + (project.budgetMax || project.budgetMin || 0);
             }, 0);
 
-            const averageProjectDuration = freelancer.assignedProjects.length > 0 ? 
+            const averageProjectDuration = freelancer.assignedProjects.length > 0 ?
                 freelancer.assignedProjects.reduce((sum, project) => {
                     const startDate = new Date(project.createdAt);
                     const endDate = new Date(project.updatedAt);
@@ -1682,8 +1684,8 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                 completedProjects: freelancer.assignedProjects.map(project => ({
                     id: project.id,
                     title: project.title,
-                    description: project.description.length > 200 ? 
-                        project.description.substring(0, 200) + '...' : 
+                    description: project.description.length > 200 ?
+                        project.description.substring(0, 200) + '...' :
                         project.description,
                     skillsRequired: project.skillsRequired,
                     budget: {
@@ -1701,11 +1703,17 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                     }
                 }))
             };
+            await setCache(cacheKey, { email: freelancer.user.email, freelancer: profileData.freelancer }, 1800);
+
+            res.status(200).json({
+                success: true,
+                data: { email: freelancer.user.email, freelancer: profileData.freelancer }
+            });
 
         } else if (user.role === 'CLIENT' && user.client) {
             // Get client profile data directly (don't use HTTP request)
             const client = await prisma.client.findUnique({
-                where: { 
+                where: {
                     id: user.client.id,
                     user: {
                         isActive: true
@@ -1719,7 +1727,8 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                             profileImage: true,
                             bio: true,
                             location: true,
-                            createdAt: true
+                            createdAt: true,
+                            email: true
                         }
                     },
                     projects: {
@@ -1788,7 +1797,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                     },
                     take: 5
                 }),
-                
+
                 prisma.rating.aggregate({
                     where: {
                         ratedId: client.user.id,
@@ -1801,7 +1810,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                         rating: true
                     }
                 }),
-                
+
                 prisma.rating.groupBy({
                     by: ['rating'],
                     where: {
@@ -1825,7 +1834,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                 return sum + (project.budgetMax || project.budgetMin || 0);
             }, 0);
 
-            const averageProjectBudget = client.projects.length > 0 ? 
+            const averageProjectBudget = client.projects.length > 0 ?
                 totalProjectsValue / client.projects.length : 0;
 
             const mostUsedSkills = client.projects.reduce((skillMap, project) => {
@@ -1836,7 +1845,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
             }, {});
 
             const topSkills = Object.entries(mostUsedSkills)
-                .sort(([,a], [,b]) => b - a)
+                .sort(([, a], [, b]) => b - a)
                 .slice(0, 10)
                 .map(([skill, count]) => ({ skill, projectCount: count }));
 
@@ -1879,8 +1888,8 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                 completedProjects: client.projects.map(project => ({
                     id: project.id,
                     title: project.title,
-                    description: project.description.length > 200 ? 
-                        project.description.substring(0, 200) + '...' : 
+                    description: project.description.length > 200 ?
+                        project.description.substring(0, 200) + '...' :
                         project.description,
                     skillsRequired: project.skillsRequired,
                     budget: {
@@ -1898,6 +1907,12 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
                     } : null
                 }))
             };
+            await setCache(cacheKey, { email: client.user.email, client: profileData.client }, 1800);
+
+            res.status(200).json({
+                success: true,
+                data: { email: client.user.email, client: profileData.client }
+            });
 
         } else {
             return res.status(400).json({
@@ -1907,12 +1922,7 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
         }
 
         // Cache for 30 minutes
-        await setCache(cacheKey, profileData, 1800);
 
-        res.status(200).json({
-            success: true,
-            data: profileData
-        });
 
     } catch (error) {
         console.error('Get user profile error:', error);
@@ -1927,14 +1937,14 @@ publicRouter.get('/users/:userId/profile', async (req, res) => {
 // GET /api/public/profiles/search - Search across both freelancers and clients
 publicRouter.get('/profiles/search', async (req, res) => {
     try {
-        const { 
-            query, 
+        const {
+            query,
             type, // 'freelancer', 'client', or 'all'
             skills,
             location,
             minRating,
-            page = 1, 
-            limit = 12 
+            page = 1,
+            limit = 12
         } = req.query;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
