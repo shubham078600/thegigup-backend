@@ -39,7 +39,7 @@ const invalidateClientCaches = async (userId, clientId = null) => {
         // Client specific caches
         `client:profile:${userId}`,
         `client:dashboard:${userId}`,
-        
+
         // Public caches
         'public:projects:available',
         'public:projects:recent',
@@ -49,7 +49,7 @@ const invalidateClientCaches = async (userId, clientId = null) => {
 
     // Add project-related caches with different filters
     const statuses = ['all', 'OPEN', 'ASSIGNED', 'COMPLETED'];
-    const pages = Array.from({length: 5}, (_, i) => i + 1);
+    const pages = Array.from({ length: 5 }, (_, i) => i + 1);
     const limits = [10, 20, 50];
 
     for (const status of statuses) {
@@ -224,18 +224,18 @@ clientRouter.post('/projects', authenticateToken, checkClientActive, async (req,
             `client:profile:${userId}`,
             `client:dashboard:${userId}`,
             `client:projects:${userId}`,
-            
+
             // Public caches that might show this project
             `public:projects:available`,
             `public:projects:recent`,
             `public:featured:projects`,
-            
+
             // Admin dashboard cache
             `admin:dashboard:stats`,
-            
+
             // Any cached project lists with pagination
-            ...Array.from({length: 10}, (_, i) => `client:projects:${userId}:page:${i + 1}`),
-            ...Array.from({length: 10}, (_, i) => `public:projects:page:${i + 1}`),
+            ...Array.from({ length: 10 }, (_, i) => `client:projects:${userId}:page:${i + 1}`),
+            ...Array.from({ length: 10 }, (_, i) => `public:projects:page:${i + 1}`),
         ];
 
         // Delete all relevant caches
@@ -271,10 +271,10 @@ clientRouter.get('/projects', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { status, page = 1, limit = 10 } = req.query;
-        
+
         // Create cache key based on query parameters
         const cacheKey = `client:projects:${userId}:status:${status || 'all'}:page:${page}:limit:${limit}`;
-        
+
         // Check cache first (shorter duration)
         const cachedProjects = await getCache(cacheKey);
         if (cachedProjects) {
@@ -284,9 +284,9 @@ clientRouter.get('/projects', authenticateToken, async (req, res) => {
                 cached: true
             });
         }
-        
+
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        
+
         const client = await prisma.client.findUnique({
             where: { userId }
         });
@@ -597,10 +597,10 @@ clientRouter.put('/projects/:projectId/applications/:applicationId/reject', auth
         const cacheKeysToDelete = [
             // Client caches
             `client:dashboard:${userId}`,
-            
+
             // Freelancer caches (application rejected)
             `freelancer:dashboard:${freelancerUserId}`,
-            
+
             // Admin dashboard
             'admin:dashboard:stats'
         ];
@@ -613,13 +613,13 @@ clientRouter.put('/projects/:projectId/applications/:applicationId/reject', auth
                     `client:applications:${userId}:status:all:page:${page}:limit:${limit}`,
                     `client:applications:${userId}:status:PENDING:page:${page}:limit:${limit}`,
                     `client:applications:${userId}:status:REJECTED:page:${page}:limit:${limit}`,
-                    
+
                     // Project-specific application caches
                     `client:project:${projectId}:applications:status:all:page:${page}:limit:${limit}`,
                     `client:project:${projectId}:applications:status:PENDING:page:${page}:limit:${limit}`,
                     `client:project:${projectId}:applications:status:REJECTED:page:${page}:limit:${limit}`
                 );
-                
+
                 // Freelancer caches
                 cacheKeysToDelete.push(
                     `freelancer:applications:${freelancerUserId}:status:all:page:${page}:limit:${limit}`,
@@ -832,8 +832,8 @@ clientRouter.get('/dashboard', authenticateToken, async (req, res) => {
             pendingApplications: client.projects.reduce((sum, project) => sum + project.applications.length, 0)
         };
 
-        const dashboardData = { 
-            client, 
+        const dashboardData = {
+            client,
             stats,
             recentProjects: client.projects.slice(0, 5) // Show 5 most recent projects
         };
@@ -907,7 +907,7 @@ clientRouter.put('/projects/:projectId/approve-completion', authenticateToken, a
             // Update project status
             const completedProject = await tx.project.update({
                 where: { id: projectId },
-                data: { 
+                data: {
                     status: 'COMPLETED',
                     updatedAt: new Date()
                 }
@@ -932,11 +932,11 @@ clientRouter.put('/projects/:projectId/approve-completion', authenticateToken, a
             // Client caches
             `client:dashboard:${userId}`,
             `client:profile:${userId}`,
-            
+
             // Freelancer caches (project completed, stats updated)
             `freelancer:dashboard:${freelancerUserId}`,
             `freelancer:profile:${freelancerUserId}`,
-            
+
             // Public caches (freelancer stats might affect featured list)
             'public:featured:freelancers',
             'admin:dashboard:stats'
@@ -952,7 +952,7 @@ clientRouter.put('/projects/:projectId/approve-completion', authenticateToken, a
                     `client:projects:${userId}:status:COMPLETED:page:${page}:limit:${limit}`,
                     `client:projects:${userId}:status:ASSIGNED:page:${page}:limit:${limit}`
                 );
-                
+
                 // Freelancer project caches
                 cacheKeysToDelete.push(
                     `freelancer:projects:${freelancerUserId}:status:all:page:${page}:limit:${limit}`,
@@ -1027,7 +1027,7 @@ clientRouter.put('/projects/:projectId/reject-completion', authenticateToken, as
         // Update project status back to ASSIGNED
         const updatedProject = await prisma.project.update({
             where: { id: projectId },
-            data: { 
+            data: {
                 status: 'ASSIGNED',
                 updatedAt: new Date()
             }
@@ -1038,10 +1038,10 @@ clientRouter.put('/projects/:projectId/reject-completion', authenticateToken, as
         const cacheKeysToDelete = [
             // Client caches
             `client:dashboard:${userId}`,
-            
+
             // Freelancer caches (project status reverted)
             `freelancer:dashboard:${freelancerUserId}`,
-            
+
             // Admin dashboard
             'admin:dashboard:stats'
         ];
@@ -1055,7 +1055,7 @@ clientRouter.put('/projects/:projectId/reject-completion', authenticateToken, as
                     `client:projects:${userId}:status:PENDING_COMPLETION:page:${page}:limit:${limit}`,
                     `client:projects:${userId}:status:ASSIGNED:page:${page}:limit:${limit}`
                 );
-                
+
                 // Freelancer project caches
                 cacheKeysToDelete.push(
                     `freelancer:projects:${freelancerUserId}:status:all:page:${page}:limit:${limit}`,
@@ -1311,7 +1311,7 @@ clientRouter.get('/ratings', authenticateToken, async (req, res) => {
             project: {
                 title: rating.project.title
             },
-            otherParty: rating.raterId === userId 
+            otherParty: rating.raterId === userId
                 ? {
                     name: rating.project.freelancer?.user.name,
                     profileImage: rating.project.freelancer?.user.profileImage,
@@ -1448,7 +1448,7 @@ clientRouter.get('/meetings', authenticateToken, async (req, res) => {
         const { status, page = 1, limit = 10 } = req.query;
 
         const cacheKey = `client:meetings:${userId}:status:${status || 'all'}:page:${page}:limit:${limit}`;
-        
+
         const cachedMeetings = await getCache(cacheKey);
         if (cachedMeetings) {
             return res.status(200).json({
@@ -1548,13 +1548,13 @@ clientRouter.put('/meetings/:meetingId/reschedule', authenticateToken, async (re
     try {
         const userId = req.user.userId;
         const { meetingId } = req.params;
-        const { 
-            newDate, 
-            newTime, 
+        const {
+            newDate,
+            newTime,
             newGoogleMeetLink,
-            rescheduleReason, 
+            rescheduleReason,
             timezone = 'UTC',
-            duration 
+            duration
         } = req.body;
 
         if (!newDate || !newTime || !rescheduleReason) {
@@ -1686,10 +1686,10 @@ clientRouter.post('/applications/:applicationId/meetings', authenticateToken, ch
     try {
         const userId = req.user.userId;
         const { applicationId } = req.params;
-        const { 
-            googleMeetLink, 
-            meetingDate, 
-            meetingTime, 
+        const {
+            googleMeetLink,
+            meetingDate,
+            meetingTime,
             timezone = 'UTC',
             meetingTitle = 'Application Interview',
             duration = 60
@@ -1870,7 +1870,7 @@ clientRouter.put('/meetings/:meetingId/action', authenticateToken, async (req, r
     try {
         const userId = req.user.userId;
         const { meetingId } = req.params;
-        const { 
+        const {
             action, // 'reschedule' or 'complete'
             // For reschedule
             newDate,
@@ -2045,7 +2045,7 @@ clientRouter.get('/applications/:applicationId/meetings', authenticateToken, asy
         const { status, page = 1, limit = 10 } = req.query;
 
         const cacheKey = `client:application:${applicationId}:meetings:status:${status || 'all'}:page:${page}:limit:${limit}`;
-        
+
         const cachedMeetings = await getCache(cacheKey);
         if (cachedMeetings) {
             return res.status(200).json({
@@ -2327,14 +2327,14 @@ clientRouter.use((error, req, res, next) => {
             });
         }
     }
-    
+
     if (error.message === 'Only image files are allowed') {
         return res.status(400).json({
             success: false,
             message: 'Only image files are allowed for profile pictures.'
         });
     }
-    
+
     next(error);
 });
 
@@ -2513,10 +2513,10 @@ clientRouter.post('/projects/:projectId/meetings', authenticateToken, checkClien
     try {
         const userId = req.user.userId;
         const { projectId } = req.params;
-        const { 
-            googleMeetLink, 
-            meetingDate, 
-            meetingTime, 
+        const {
+            googleMeetLink,
+            meetingDate,
+            meetingTime,
             timezone = 'UTC',
             meetingTitle,
             meetingDescription,
@@ -2620,7 +2620,7 @@ clientRouter.post('/projects/:projectId/meetings', authenticateToken, checkClien
                 success: false,
                 message: 'No approved application found for this project'
             });
-               }
+        }
 
         // Create meeting
         const meeting = await prisma.meeting.create({
@@ -2710,7 +2710,7 @@ clientRouter.get('/projects/:projectId/meetings', authenticateToken, async (req,
         const { status, page = 1, limit = 10 } = req.query;
 
         const cacheKey = `client:project:${projectId}:meetings:status:${status || 'all'}:page:${page}:limit:${limit}`;
-        
+
         const cachedMeetings = await getCache(cacheKey);
         if (cachedMeetings) {
             return res.status(200).json({
@@ -2827,7 +2827,7 @@ clientRouter.get('/meeting-requests', authenticateToken, async (req, res) => {
         const { status, page = 1, limit = 10 } = req.query;
 
         const cacheKey = `client:meeting-requests:${userId}:status:${status || 'all'}:page:${page}:limit:${limit}`;
-        
+
         const cachedRequests = await getCache(cacheKey);
         if (cachedRequests) {
             return res.status(200).json({
@@ -2938,10 +2938,10 @@ clientRouter.put('/meeting-requests/:requestId/approve', authenticateToken, asyn
     try {
         const userId = req.user.userId;
         const { requestId } = req.params;
-        const { 
-            googleMeetLink, 
-            meetingDate, 
-            meetingTime, 
+        const {
+            googleMeetLink,
+            meetingDate,
+            meetingTime,
             timezone = 'UTC',
             meetingTitle,
             duration,
@@ -3173,6 +3173,725 @@ clientRouter.put('/meeting-requests/:requestId/reject', authenticateToken, async
 
     } catch (error) {
         console.error('Reject meeting request error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+// GET /api/client/freelancers/search - Advanced freelancer search with filters
+clientRouter.get('/freelancers/search', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const {
+            // Search parameters
+            query,              // General search term (name, bio, skills)
+            skills,             // Comma-separated skills
+            location,           // Location filter
+            experience,         // Experience level
+            availability = 'true', // Available freelancers only
+
+            // Budget filters
+            minRate,            // Minimum hourly rate
+            maxRate,            // Maximum hourly rate
+
+            // Rating filters
+            minRating = 0,      // Minimum rating
+
+            // Verification filters
+            verified = 'all',   // 'true', 'false', 'all'
+
+            // Sorting
+            sortBy = 'rating',  // 'rating', 'rate', 'projects', 'recent', 'name'
+            sortOrder = 'desc', // 'asc', 'desc'
+
+            // Pagination
+            page = 1,
+            limit = 20,
+
+            // Additional filters
+            hasPortfolio = 'all', // 'true', 'false', 'all'
+            minProjects = 0,      // Minimum completed projects
+
+        } = req.query;
+
+        // Create cache key based on all search parameters
+        const cacheKey = `client:freelancers:search:${Buffer.from(JSON.stringify({
+            query, skills, location, experience, availability, minRate, maxRate,
+            minRating, verified, sortBy, sortOrder, page, limit, hasPortfolio, minProjects
+        })).toString('base64')}`;
+
+        // Check cache first
+        const cachedResults = await getCache(cacheKey);
+        if (cachedResults) {
+            return res.status(200).json({
+                success: true,
+                data: cachedResults,
+                cached: true
+            });
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const limitNum = Math.min(parseInt(limit), 100); // Cap at 100 results per page
+
+        // Build where clause
+        const whereClause = {
+            user: {
+                isActive: true // Only show active freelancers
+            }
+        };
+
+        // General search (name, bio, skills)
+        if (query && query.trim()) {
+            const searchTerm = query.trim();
+            whereClause.OR = [
+                {
+                    user: {
+                        name: {
+                            contains: searchTerm,
+                            mode: 'insensitive'
+                        }
+                    }
+                },
+                {
+                    user: {
+                        bio: {
+                            contains: searchTerm,
+                            mode: 'insensitive'
+                        }
+                    }
+                },
+                {
+                    skills: {
+                        hasSome: [searchTerm]
+                    }
+                }
+            ];
+        }
+
+        // Skills filter
+        if (skills && skills.trim()) {
+            const skillsArray = skills.split(',').map(skill => skill.trim().toLowerCase());
+            whereClause.skills = {
+                hasSome: skillsArray
+            };
+        }
+
+        // Location filter
+        if (location && location.trim()) {
+            whereClause.user.location = {
+                contains: location.trim(),
+                mode: 'insensitive'
+            };
+        }
+
+        // Experience filter
+        if (experience && experience.trim()) {
+            whereClause.experience = {
+                contains: experience.trim(),
+                mode: 'insensitive'
+            };
+        }
+
+        // Availability filter
+        if (availability === 'true') {
+            whereClause.availability = true;
+        } else if (availability === 'false') {
+            whereClause.availability = false;
+        }
+
+        // Rate filters
+        if (minRate && !isNaN(parseFloat(minRate))) {
+            whereClause.hourlyRate = {
+                ...whereClause.hourlyRate,
+                gte: parseFloat(minRate)
+            };
+        }
+
+        if (maxRate && !isNaN(parseFloat(maxRate))) {
+            whereClause.hourlyRate = {
+                ...whereClause.hourlyRate,
+                lte: parseFloat(maxRate)
+            };
+        }
+
+        // Rating filter
+        if (minRating && !isNaN(parseFloat(minRating))) {
+            whereClause.ratings = {
+                gte: parseFloat(minRating)
+            };
+        }
+
+        // Verification filter
+        if (verified === 'true') {
+            whereClause.isVerified = true;
+        } else if (verified === 'false') {
+            whereClause.isVerified = false;
+        }
+
+        // Portfolio filter
+        if (hasPortfolio === 'true') {
+            whereClause.OR = [
+                ...(whereClause.OR || []),
+                { portfolioUrl: { not: null } },
+                { githubUrl: { not: null } },
+                { linkedinUrl: { not: null } }
+            ];
+        }
+
+        // Minimum projects filter
+        if (minProjects && !isNaN(parseInt(minProjects))) {
+            whereClause.projectsCompleted = {
+                gte: parseInt(minProjects)
+            };
+        }
+
+        // Determine sort order
+        let orderBy = {};
+        switch (sortBy) {
+            case 'rating':
+                orderBy = { ratings: sortOrder };
+                break;
+            case 'rate':
+                orderBy = { hourlyRate: sortOrder };
+                break;
+            case 'projects':
+                orderBy = { projectsCompleted: sortOrder };
+                break;
+            case 'recent':
+                orderBy = { user: { createdAt: sortOrder } };
+                break;
+            case 'name':
+                orderBy = { user: { name: sortOrder } };
+                break;
+            default:
+                orderBy = { ratings: 'desc' };
+        }
+
+        // Execute search query
+        const [freelancers, totalFreelancers, aggregateStats] = await Promise.all([
+            prisma.freelancer.findMany({
+                where: whereClause,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            profileImage: true,
+                            bio: true,
+                            location: true,
+                            createdAt: true
+                        }
+                    },
+                    // Get recent completed projects for context
+                    assignedProjects: {
+                        where: {
+                            status: 'COMPLETED'
+                        },
+                        select: {
+                            id: true,
+                            title: true,
+                            skillsRequired: true,
+                            budgetMin: true,
+                            budgetMax: true,
+                            createdAt: true,
+                            client: {
+                                select: {
+                                    companyName: true
+                                }
+                            }
+                        },
+                        orderBy: {
+                            updatedAt: 'desc'
+                        },
+                        take: 3 // Show 3 most recent projects
+                    }
+                },
+                orderBy,
+                skip,
+                take: limitNum
+            }),
+
+            // Get total count for pagination
+            prisma.freelancer.count({
+                where: whereClause
+            }),
+
+            // Get aggregate statistics for the search results
+            prisma.freelancer.aggregate({
+                where: whereClause,
+                _avg: {
+                    ratings: true,
+                    hourlyRate: true,
+                    projectsCompleted: true
+                },
+                _min: {
+                    hourlyRate: true
+                },
+                _max: {
+                    hourlyRate: true
+                }
+            })
+        ]);
+
+        // Get rating distribution for search results
+        const ratingDistribution = await prisma.freelancer.groupBy({
+            by: ['ratings'],
+            where: {
+                ...whereClause,
+                ratings: { gt: 0 }
+            },
+            _count: {
+                ratings: true
+            }
+        });
+
+        // Format freelancer data
+        const formattedFreelancers = freelancers.map(freelancer => {
+            // Calculate match score based on search criteria
+            let matchScore = 0;
+
+            // Skills match
+            if (skills) {
+                const searchSkills = skills.split(',').map(s => s.trim().toLowerCase());
+                const freelancerSkills = freelancer.skills.map(s => s.toLowerCase());
+                const matchingSkills = searchSkills.filter(skill =>
+                    freelancerSkills.some(fSkill => fSkill.includes(skill))
+                );
+                matchScore += (matchingSkills.length / searchSkills.length) * 40;
+            }
+
+            // Rating score
+            matchScore += (freelancer.ratings / 5) * 25;
+
+            // Project completion score
+            matchScore += Math.min(freelancer.projectsCompleted / 10, 1) * 20;
+
+            // Verification score
+            if (freelancer.isVerified) matchScore += 10;
+
+            // Availability score
+            if (freelancer.availability) matchScore += 5;
+
+            return {
+                id: freelancer.id,
+                profile: {
+                    name: freelancer.user.name,
+                    profileImage: freelancer.user.profileImage,
+                    bio: freelancer.user.bio,
+                    location: freelancer.user.location,
+                    memberSince: freelancer.user.createdAt
+                },
+                professional: {
+                    skills: freelancer.skills,
+                    experience: freelancer.experience,
+                    hourlyRate: freelancer.hourlyRate,
+                    availability: freelancer.availability,
+                    isVerified: freelancer.isVerified
+                },
+                statistics: {
+                    projectsCompleted: freelancer.projectsCompleted,
+                    rating: freelancer.ratings,
+                    matchScore: Math.round(matchScore)
+                },
+                portfolio: {
+                    github: freelancer.githubUrl,
+                    linkedin: freelancer.linkedinUrl,
+                    portfolio: freelancer.portfolioUrl,
+                    hasPortfolio: !!(freelancer.portfolioUrl || freelancer.githubUrl || freelancer.linkedinUrl)
+                },
+                recentProjects: freelancer.assignedProjects.map(project => ({
+                    id: project.id,
+                    title: project.title,
+                    skills: project.skillsRequired,
+                    budget: {
+                        min: project.budgetMin,
+                        max: project.budgetMax
+                    },
+                    client: project.client.companyName,
+                    completedAt: project.createdAt
+                }))
+            };
+        });
+
+        // Sort by match score if using general search
+        if (query && query.trim()) {
+            formattedFreelancers.sort((a, b) => b.statistics.matchScore - a.statistics.matchScore);
+        }
+
+        // Prepare response data
+        const responseData = {
+            freelancers: formattedFreelancers,
+            pagination: {
+                page: parseInt(page),
+                limit: limitNum,
+                total: totalFreelancers,
+                pages: Math.ceil(totalFreelancers / limitNum),
+                hasNext: (parseInt(page) * limitNum) < totalFreelancers,
+                hasPrev: parseInt(page) > 1
+            },
+            searchMeta: {
+                query: query || null,
+                appliedFilters: {
+                    skills: skills || null,
+                    location: location || null,
+                    experience: experience || null,
+                    minRate: minRate ? parseFloat(minRate) : null,
+                    maxRate: maxRate ? parseFloat(maxRate) : null,
+                    minRating: parseFloat(minRating),
+                    verified: verified,
+                    availability: availability === 'true',
+                    hasPortfolio: hasPortfolio,
+                    minProjects: parseInt(minProjects)
+                },
+                sorting: {
+                    sortBy,
+                    sortOrder
+                }
+            },
+            statistics: {
+                totalResults: totalFreelancers,
+                averages: {
+                    rating: aggregateStats._avg.ratings ? parseFloat(aggregateStats._avg.ratings.toFixed(2)) : 0,
+                    hourlyRate: aggregateStats._avg.hourlyRate ? parseFloat(aggregateStats._avg.hourlyRate.toFixed(2)) : 0,
+                    projectsCompleted: aggregateStats._avg.projectsCompleted ? parseFloat(aggregateStats._avg.projectsCompleted.toFixed(1)) : 0
+                },
+                rateRange: {
+                    min: aggregateStats._min.hourlyRate || 0,
+                    max: aggregateStats._max.hourlyRate || 0
+                },
+                ratingDistribution: ratingDistribution.reduce((acc, item) => {
+                    const ratingRange = Math.floor(item.ratings);
+                    acc[ratingRange] = (acc[ratingRange] || 0) + item._count.ratings;
+                    return acc;
+                }, {})
+            }
+        };
+
+        // Cache for 5 minutes (search results change frequently)
+        await setCache(cacheKey, responseData, 300);
+
+        res.status(200).json({
+            success: true,
+            data: responseData
+        });
+
+    } catch (error) {
+        console.error('Freelancer search error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+// GET /api/client/freelancers/filters - Get available filter options for search
+clientRouter.get('/freelancers/filters', authenticateToken, async (req, res) => {
+    try {
+        const cacheKey = 'client:freelancers:filters';
+
+        // Check cache
+        const cachedFilters = await getCache(cacheKey);
+        if (cachedFilters) {
+            return res.status(200).json({
+                success: true,
+                data: cachedFilters,
+                cached: true
+            });
+        }
+
+        // Get filter options from database
+        const [skillsData, locationsData, experienceData, rateStats] = await Promise.all([
+            // Get all unique skills
+            prisma.freelancer.findMany({
+                where: {
+                    user: { isActive: true },
+                    skills: { not: { equals: [] } }
+                },
+                select: { skills: true }
+            }),
+
+            // Get all unique locations
+            prisma.user.findMany({
+                where: {
+                    role: 'FREELANCER',
+                    isActive: true,
+                    location: { not: null }
+                },
+                select: { location: true },
+                distinct: ['location']
+            }),
+
+            // Get experience levels
+            prisma.freelancer.findMany({
+                where: {
+                    user: { isActive: true },
+                    experience: { not: null }
+                },
+                select: { experience: true },
+                distinct: ['experience']
+            }),
+
+            // Get rate statistics
+            prisma.freelancer.aggregate({
+                where: {
+                    user: { isActive: true },
+                    hourlyRate: { not: null }
+                },
+                _min: { hourlyRate: true },
+                _max: { hourlyRate: true },
+                _avg: { hourlyRate: true }
+            })
+        ]);
+
+        // Process skills (flatten and count)
+        const skillsMap = new Map();
+        skillsData.forEach(freelancer => {
+            freelancer.skills.forEach(skill => {
+                const normalizedSkill = skill.trim();
+                if (normalizedSkill) {
+                    skillsMap.set(normalizedSkill, (skillsMap.get(normalizedSkill) || 0) + 1);
+                }
+            });
+        });
+
+        const topSkills = Array.from(skillsMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 50) // Top 50 skills
+            .map(([skill, count]) => ({ skill, count }));
+
+        // Process locations
+        const locations = locationsData
+            .map(user => user.location.trim())
+            .filter(Boolean)
+            .sort();
+
+        // Process experience levels
+        const experienceLevels = experienceData
+            .map(freelancer => freelancer.experience.trim())
+            .filter(Boolean)
+            .sort();
+
+        const filterOptions = {
+            skills: topSkills,
+            locations: locations,
+            experienceLevels: experienceLevels,
+            rateRange: {
+                min: rateStats._min.hourlyRate || 0,
+                max: rateStats._max.hourlyRate || 1000,
+                average: rateStats._avg.hourlyRate ? parseFloat(rateStats._avg.hourlyRate.toFixed(2)) : 0
+            },
+            sortOptions: [
+                { value: 'rating', label: 'Highest Rated', order: 'desc' },
+                { value: 'projects', label: 'Most Projects', order: 'desc' },
+                { value: 'rate', label: 'Lowest Rate', order: 'asc' },
+                { value: 'rate', label: 'Highest Rate', order: 'desc' },
+                { value: 'recent', label: 'Newest Members', order: 'desc' },
+                { value: 'name', label: 'Name A-Z', order: 'asc' },
+                { value: 'name', label: 'Name Z-A', order: 'desc' }
+            ],
+            presetFilters: [
+                {
+                    name: 'Top Rated',
+                    filters: { minRating: 4.5, verified: 'true' }
+                },
+                {
+                    name: 'Available Now',
+                    filters: { availability: 'true' }
+                },
+                {
+                    name: 'Experienced',
+                    filters: { minProjects: 5, minRating: 4.0 }
+                },
+                {
+                    name: 'Budget Friendly',
+                    filters: { maxRate: 50 }
+                },
+                {
+                    name: 'Premium',
+                    filters: { minRate: 100, minRating: 4.5, verified: 'true' }
+                }
+            ]
+        };
+
+        // Cache for 1 hour (filter options don't change frequently)
+        await setCache(cacheKey, filterOptions, 3600);
+
+        res.status(200).json({
+            success: true,
+            data: filterOptions
+        });
+
+    } catch (error) {
+        console.error('Get freelancer filters error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+});
+
+// GET /api/client/freelancers/suggested - Get suggested freelancers based on client's project history
+clientRouter.get('/freelancers/suggested', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { limit = 10 } = req.query;
+
+        const cacheKey = `client:freelancers:suggested:${userId}:limit:${limit}`;
+
+        // Check cache
+        const cachedSuggestions = await getCache(cacheKey);
+        if (cachedSuggestions) {
+            return res.status(200).json({
+                success: true,
+                data: cachedSuggestions,
+                cached: true
+            });
+        }
+
+        const client = await prisma.client.findUnique({
+            where: { userId },
+            include: {
+                projects: {
+                    select: {
+                        skillsRequired: true,
+                        budgetMin: true,
+                        budgetMax: true
+                    }
+                }
+            }
+        });
+
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        // Extract skills and budget preferences from client's project history
+        const projectSkills = new Set();
+        let totalMinBudget = 0;
+        let totalMaxBudget = 0;
+        let projectCount = 0;
+
+        client.projects.forEach(project => {
+            project.skillsRequired.forEach(skill => projectSkills.add(skill.toLowerCase()));
+            if (project.budgetMin) {
+                totalMinBudget += project.budgetMin;
+                projectCount++;
+            }
+            if (project.budgetMax) {
+                totalMaxBudget += project.budgetMax;
+            }
+        });
+
+        const preferredSkills = Array.from(projectSkills);
+        const avgMinBudget = projectCount > 0 ? totalMinBudget / projectCount : 0;
+        const avgMaxBudget = projectCount > 0 ? totalMaxBudget / projectCount : 0;
+
+        // Build suggestion query
+        const whereClause = {
+            user: { isActive: true },
+            availability: true,
+            ratings: { gte: 3.0 } // Only suggest freelancers with decent ratings
+        };
+
+        // Add skill-based filtering if client has project history
+        if (preferredSkills.length > 0) {
+            whereClause.skills = {
+                hasSome: preferredSkills
+            };
+        }
+
+        // Add budget-based filtering if client has budget history
+        if (avgMaxBudget > 0) {
+            whereClause.hourlyRate = {
+                lte: avgMaxBudget / 40 // Assuming 40 hours per project on average
+            };
+        }
+
+        const suggestedFreelancers = await prisma.freelancer.findMany({
+            where: whereClause,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        profileImage: true,
+                        bio: true,
+                        location: true
+                    }
+                }
+            },
+            orderBy: [
+                { ratings: 'desc' },
+                { projectsCompleted: 'desc' }
+            ],
+            take: parseInt(limit)
+        });
+
+        const formattedSuggestions = suggestedFreelancers.map(freelancer => {
+            // Calculate suggestion relevance score
+            let relevanceScore = 0;
+
+            if (preferredSkills.length > 0) {
+                const matchingSkills = freelancer.skills.filter(skill =>
+                    preferredSkills.includes(skill.toLowerCase())
+                );
+                relevanceScore += (matchingSkills.length / preferredSkills.length) * 50;
+            }
+
+            relevanceScore += (freelancer.ratings / 5) * 30;
+            relevanceScore += Math.min(freelancer.projectsCompleted / 10, 1) * 20;
+
+            return {
+                id: freelancer.id,
+                name: freelancer.user.name,
+                profileImage: freelancer.user.profileImage,
+                bio: freelancer.user.bio,
+                location: freelancer.user.location,
+                skills: freelancer.skills,
+                hourlyRate: freelancer.hourlyRate,
+                rating: freelancer.ratings,
+                projectsCompleted: freelancer.projectsCompleted,
+                isVerified: freelancer.isVerified,
+                relevanceScore: Math.round(relevanceScore),
+                reasonForSuggestion: preferredSkills.length > 0
+                    ? `Matches your preferred skills: ${freelancer.skills.filter(skill =>
+                        preferredSkills.includes(skill.toLowerCase())
+                    ).join(', ')}`
+                    : 'Highly rated and available freelancer'
+            };
+        });
+
+        const responseData = {
+            suggestions: formattedSuggestions,
+            suggestionCriteria: {
+                basedOnProjects: client.projects.length,
+                preferredSkills: preferredSkills,
+                avgBudgetRange: projectCount > 0 ? {
+                    min: Math.round(avgMinBudget),
+                    max: Math.round(avgMaxBudget)
+                } : null
+            }
+        };
+
+        // Cache for 30 minutes
+        await setCache(cacheKey, responseData, 1800);
+
+        res.status(200).json({
+            success: true,
+            data: responseData
+        });
+
+    } catch (error) {
+        console.error('Get suggested freelancers error:', error);
         res.status(500).json({
             success: false,
             message: 'Internal server error',
